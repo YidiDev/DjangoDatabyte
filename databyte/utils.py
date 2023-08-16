@@ -1,5 +1,5 @@
 from django.db import models
-from databyte.fields import ExternalStorageTrackingField, StorageAwareForeignKey
+from databyte.fields import ExternalStorageTrackingField, StorageAwareForeignKey, AutomatedStorageTrackingField
 
 
 # noinspection PyProtectedMember,PyTypeChecker
@@ -26,6 +26,8 @@ def compute_instance_storage(instance: models.Model) -> int:
         elif isinstance(
                 field,
                 (
+                        ExternalStorageTrackingField,
+                        AutomatedStorageTrackingField,
                         models.PositiveIntegerField,
                         models.BigIntegerField,
                         models.IntegerField,
@@ -45,7 +47,7 @@ def compute_instance_storage(instance: models.Model) -> int:
             total_storage += len(value)
         elif isinstance(field, models.UUIDField):
             total_storage += len(value.hex)
-        elif isinstance(field, models.ForeignKey):
+        elif isinstance(field, (StorageAwareForeignKey, models.ForeignKey)):
             total_storage += len(str(value.pk))
         else:
             total_storage += len(str(value).encode('utf-8'))
