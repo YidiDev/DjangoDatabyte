@@ -5,3 +5,6 @@ class DatabyteConfig(AppConfig):
     default_auto_field: str = 'django.db.models.BigAutoField'
     name: str = 'databyte'
     verbose_name: str = 'Databyte'
+
+    def ready(self) -> None:
+        from . import signals
