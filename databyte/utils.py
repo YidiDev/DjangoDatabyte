@@ -4,6 +4,15 @@ from databyte.fields import ExternalStorageTrackingField, StorageAwareForeignKey
 
 # noinspection PyProtectedMember,PyTypeChecker
 def compute_instance_storage(instance: models.Model) -> int:
+    """
+    Compute the storage consumed by the fields of a given instance.
+
+    Args:
+        instance (Model): The instance for which storage is to be computed.
+
+    Returns:
+        int: Total storage (in bytes) consumed by the instance.
+    """
     total_storage: int = 0
     for field in instance._meta.fields:
         value: models.Field | None = getattr(instance, field.name, None)
@@ -56,6 +65,15 @@ def compute_instance_storage(instance: models.Model) -> int:
 
 # noinspection PyProtectedMember
 def compute_child_storage(instance: models.Model) -> int:
+    """
+    Compute the storage consumed by the child records of a given instance.
+
+    Args:
+        instance (Model): The instance whose child records' storage is to be computed.
+
+    Returns:
+        int: Total storage (in bytes) consumed by the child records.
+    """
     total_storage: int = 0
     for related_object in instance._meta.related_objects:
         related_model: models.Model = related_object.related_model
@@ -73,6 +91,15 @@ def compute_child_storage(instance: models.Model) -> int:
 
 # noinspection PyProtectedMember
 def compute_external_storage(instance: models.Model) -> int:
+    """
+    Compute the storage reported by ExternalStorageTrackingFields of a given instance.
+
+    Args:
+        instance (Model): The instance for which external storage is to be computed.
+
+    Returns:
+        int: Total storage (in bytes) reported by the instance's ExternalStorageTrackingFields.
+    """
     total_storage: int = 0
     for field in instance._meta.fields:
         if isinstance(field, ExternalStorageTrackingField):
@@ -82,6 +109,15 @@ def compute_external_storage(instance: models.Model) -> int:
 
 # noinspection PyProtectedMember
 def compute_file_fields_storage(instance: models.Model) -> int:
+    """
+    Compute the storage consumed by the file fields of a given instance.
+
+    Args:
+        instance (Model): The instance whose file fields' storage is to be computed.
+
+    Returns:
+        int: Total storage (in bytes) consumed by the file fields.
+    """
     total_storage: int = 0
 
     for field in instance._meta.fields:
@@ -98,6 +134,16 @@ def compute_file_fields_storage(instance: models.Model) -> int:
 
 # noinspection PyProtectedMember
 def notify_parents_to_recompute(instance: models.Model) -> None:
+    """
+    Notify the parent records of a given instance to recompute their storage.
+
+    If an instance has a StorageAwareForeignKey pointing to another record and that
+    ForeignKey is marked as `count_as_storage_parent`, then the parent record will be
+    saved, causing its storage to be recomputed.
+
+    Args:
+        instance (Model): The instance whose parent records should be notified.
+    """
     for field in instance._meta.fields:
         if isinstance(
                 field, StorageAwareForeignKey
