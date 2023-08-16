@@ -8,7 +8,7 @@ class ExternalStorageTrackingField(models.BigIntegerField):
 
 
 class AutomatedStorageTrackingField(models.BigIntegerField):
-    def __init__(self, include_in_parents_count=False, *args, **kwargs):
-        self.include_in_parents_count = include_in_parents_count
+    def __init__(self, include_in_parents_count: bool = False, *args, **kwargs):
+        self.include_in_parents_count: bool = include_in_parents_count
         kwargs['default'] = 0
         super().__init__(*args, **kwargs)

@@ -4,11 +4,11 @@ from databyte.fields import ExternalStorageTrackingField
 
 
 # noinspection PyProtectedMember
-def compute_instance_storage(instance):
+def compute_instance_storage(instance: models.Model) -> int:
     """Compute the storage used by the instance based on the length of all its string fields."""
-    total_storage = 0
+    total_storage: int = 0
     for field in instance._meta.fields:
-        value = getattr(instance, field.name, None)
+        value: models.Field | None = getattr(instance, field.name, None)
 
         # If value is None, skip the field
         if value is None:
@@ -74,12 +74,12 @@ def compute_instance_storage(instance):
 
 
 # noinspection PyProtectedMember
-def compute_child_storage(instance):
+def compute_child_storage(instance: models.Model) -> int:
     """Recursively compute storage used by child records."""
-    total_storage = 0
+    total_storage: int = 0
     for related_object in instance._meta.related_objects:
         # Filter only those children with AutomatedStorageTrackingField and include_in_parents_count=True
-        related_model = related_object.related_model
+        related_model: models.Model = related_object.related_model
         if hasattr(
                 related_model, 'AutomatedStorageTrackingField'
         ) and related_model.AutomatedStorageTrackingField.include_in_parents_count:
@@ -91,9 +91,9 @@ def compute_child_storage(instance):
 
 
 # noinspection PyProtectedMember
-def compute_external_storage(instance):
+def compute_external_storage(instance: models.Model) -> int:
     """Compute the total of all ExternalStorageTrackingField fields on the instance."""
-    total_storage = 0
+    total_storage: int = 0
     for field in instance._meta.fields:
         if isinstance(field, ExternalStorageTrackingField):
             total_storage += getattr(instance, field.name, 0)
@@ -101,16 +101,16 @@ def compute_external_storage(instance):
 
 
 # noinspection PyProtectedMember
-def compute_file_fields_storage(instance):
+def compute_file_fields_storage(instance: models.Model) -> int:
     """
     Compute the storage used by file fields (FileField, ImageField) of the instance.
     """
-    total_storage = 0
+    total_storage: int = 0
 
     for field in instance._meta.fields:
         # Check if the field is an instance of FileField or ImageField
         if isinstance(field, (models.FileField, models.ImageField)):
-            file_field = getattr(instance, field.name)
+            file_field: models.Field = getattr(instance, field.name)
             if file_field and file_field.file:
                 try:
                     # Get the file size from the storage backend
