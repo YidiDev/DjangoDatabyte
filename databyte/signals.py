@@ -1,14 +1,12 @@
 from django.db import models
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
-from databyte.fields import StorageAwareForeignKey
 from databyte.utils import compute_instance_storage, compute_child_storage, compute_external_storage, \
-    compute_file_fields_storage
+    compute_file_fields_storage, notify_parents_to_recompute
 
 
-# noinspection PyProtectedMember
-@receiver([post_save, post_delete])
-def update_storage(sender, instance: models.Model, **kwargs) -> None:
+@receiver(post_save)
+def update_storage_on_save(sender, instance: models.Model, **kwargs) -> None:
     if hasattr(instance, 'AutomatedStorageTrackingField'):
         instance_storage: int = compute_instance_storage(instance)
         child_storage: int = compute_child_storage(instance)
@@ -19,9 +17,12 @@ def update_storage(sender, instance: models.Model, **kwargs) -> None:
         instance.save(update_fields=['AutomatedStorageTrackingField'])
 
         if instance.AutomatedStorageTrackingField.include_in_parents_count:
-            for field in instance._meta.fields:
-                if isinstance(
-                        field, StorageAwareForeignKey
-                ) and field.count_as_storage_parent and hasattr(field.related_model, 'AutomatedStorageTrackingField'):
-                    parent: models.Model = getattr(instance, field.name)
-                    parent.save()
+            notify_parents_to_recompute(instance)
+
+
+@receiver(post_delete)
+def update_storage_on_delete(sender, instance: models.Model, **kwargs) -> None:
+    if hasattr(
+            instance, 'AutomatedStorageTrackingField'
+    ) and instance.AutomatedStorageTrackingField.include_in_parents_count:
+        notify_parents_to_recompute(instance)

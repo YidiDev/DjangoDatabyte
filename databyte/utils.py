@@ -94,3 +94,13 @@ def compute_file_fields_storage(instance: models.Model) -> int:
                     print(f"Error getting size for file field {field.name}: {e}")
 
     return total_storage
+
+
+# noinspection PyProtectedMember
+def notify_parents_to_recompute(instance: models.Model) -> None:
+    for field in instance._meta.fields:
+        if isinstance(
+                field, StorageAwareForeignKey
+        ) and field.count_as_storage_parent and hasattr(field.related_model, 'AutomatedStorageTrackingField'):
+            parent: models.Model = getattr(instance, field.name)
+            parent.save()
