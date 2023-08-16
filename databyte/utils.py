@@ -1,5 +1,5 @@
 from django.db import models
-from databyte.fields import ExternalStorageTrackingField
+from databyte.fields import ExternalStorageTrackingField, StorageAwareForeignKey
 
 
 # noinspection PyProtectedMember,PyTypeChecker
@@ -57,13 +57,15 @@ def compute_child_storage(instance: models.Model) -> int:
     total_storage: int = 0
     for related_object in instance._meta.related_objects:
         related_model: models.Model = related_object.related_model
-        if hasattr(
-                related_model, 'AutomatedStorageTrackingField'
-        ) and related_model.AutomatedStorageTrackingField.include_in_parents_count:
-            related_name = related_object.get_accessor_name()
-            children = getattr(instance, related_name).all()
-            for child in children:
-                total_storage += compute_instance_storage(child) + compute_child_storage(child)
+        related_name = related_object.get_accessor_name()
+        field = instance._meta.get_field(related_name)
+        if isinstance(field, StorageAwareForeignKey) and field.count_as_storage_parent:
+            if hasattr(
+                    related_model, 'AutomatedStorageTrackingField'
+            ) and related_model.AutomatedStorageTrackingField.include_in_parents_count:
+                children = getattr(instance, related_name).all()
+                for child in children:
+                    total_storage += compute_instance_storage(child) + compute_child_storage(child)
     return total_storage
 
 
