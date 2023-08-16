@@ -1,6 +1,7 @@
 from django.db import models
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
+from databyte.fields import StorageAwareForeignKey
 from databyte.utils import compute_instance_storage, compute_child_storage, compute_external_storage, \
     compute_file_fields_storage
 
@@ -20,7 +21,7 @@ def update_storage(sender, instance: models.Model, **kwargs) -> None:
         if instance.AutomatedStorageTrackingField.include_in_parents_count:
             for field in instance._meta.fields:
                 if isinstance(
-                        field, models.ForeignKey
-                ) and hasattr(field.related_model, 'AutomatedStorageTrackingField'):
+                        field, StorageAwareForeignKey
+                ) and field.count_as_storage_parent and hasattr(field.related_model, 'AutomatedStorageTrackingField'):
                     parent: models.Model = getattr(instance, field.name)
                     parent.save()
