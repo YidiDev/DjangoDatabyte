@@ -1,3 +1,4 @@
+from django.core.exceptions import FieldDoesNotExist
 from django.db import models
 from databyte.fields import ExternalStorageTrackingField, StorageAwareForeignKey, AutomatedStorageTrackingField
 
@@ -66,26 +67,51 @@ def compute_instance_storage(instance: models.Model) -> int:
 # noinspection PyProtectedMember
 def compute_child_storage(instance: models.Model) -> int:
     """
-    Compute the storage consumed by the child records of a given instance.
+    Compute the storage consumed by the child records related to a given instance.
+
+    This function iterates through the related objects of the instance, specifically looking for related models
+    connected through fields of type StorageAwareForeignKey with the attribute `count_as_storage_parent` set to True.
+    In those related models, it looks for fields of type AutomatedStorageTrackingField with the attribute
+    `include_in_parents_count` set to True. For each such related child instance, it sums up the storage already
+    calculated in its AutomatedStorageTrackingField.
 
     Args:
-        instance (Model): The instance whose child records' storage is to be computed.
+        instance (models.Model): The instance for which the child records' storage needs to be computed.
 
     Returns:
-        int: Total storage (in bytes) consumed by the child records.
+        int: The total storage consumed by the child records in bytes.
+
+    Notes:
+        - This function is not recursive. It only computes the storage for direct child objects,
+          relying on each child object's AutomatedStorageTrackingField for its storage size.
+        - The function only considers children connected through StorageAwareForeignKey fields with
+          `count_as_storage_parent` set to True.
     """
+
     total_storage: int = 0
+
     for related_object in instance._meta.related_objects:
         related_model: models.Model = related_object.related_model
         related_name = related_object.get_accessor_name()
-        field = instance._meta.get_field(related_name)
-        if isinstance(field, StorageAwareForeignKey) and field.count_as_storage_parent:
-            if hasattr(
-                    related_model, 'AutomatedStorageTrackingField'
-            ) and related_model.AutomatedStorageTrackingField.include_in_parents_count:
-                children = getattr(instance, related_name).all()
-                for child in children:
-                    total_storage += compute_instance_storage(child) + compute_child_storage(child)
+
+        if related_object.field and isinstance(
+                related_object.field, StorageAwareForeignKey
+        ) and related_object.field.count_as_storage_parent:
+            try:
+                for child_field in related_model._meta.fields:
+                    if isinstance(child_field, AutomatedStorageTrackingField) and child_field.include_in_parents_count:
+                        children = getattr(instance, related_name).all()
+                        for child in children:
+                            instance_storage: int = 0
+                            for field in child._meta.fields:
+                                if isinstance(field, AutomatedStorageTrackingField):
+                                    instance_storage: int = getattr(child, field.name)
+                                    break
+                            total_storage += instance_storage
+                        break
+            except FieldDoesNotExist as e:
+                print(f"getting field does not exist error as follows: {e}")
+                continue
     return total_storage
 
 
@@ -135,18 +161,28 @@ def compute_file_fields_storage(instance: models.Model) -> int:
 # noinspection PyProtectedMember
 def notify_parents_to_recompute(instance: models.Model) -> None:
     """
-    Notify the parent records of a given instance to recompute their storage.
+    Notifies the parent records of a given instance to recompute their storage utilization.
 
-    If an instance has a StorageAwareForeignKey pointing to another record and that
-    ForeignKey is marked as `count_as_storage_parent`, then the parent record will be
-    saved, causing its storage to be recomputed.
+    This function iterates through all fields of the given instance to identify any fields that are
+    of type StorageAwareForeignKey and have the `count_as_storage_parent` attribute set to True.
+    For each such field, the function identifies the parent record (the object referenced by the
+    StorageAwareForeignKey) and invokes a save operation on it. The save operation triggers a
+    re-computation of the parent's storage usage.
 
     Args:
-        instance (Model): The instance whose parent records should be notified.
+        instance (models.Model): The child instance that may have one or more parents needing
+        a storage re-computation.
+
+    Note:
+        This function assumes that the parent models have an AutomatedStorageTrackingField for
+        tracking their storage utilization. A save operation on the parent model will initiate
+        the re-computation of this field.
     """
+
     for field in instance._meta.fields:
-        if isinstance(
-                field, StorageAwareForeignKey
-        ) and field.count_as_storage_parent and hasattr(field.related_model, 'AutomatedStorageTrackingField'):
-            parent: models.Model = getattr(instance, field.name)
-            parent.save()
+        if isinstance(field, StorageAwareForeignKey) and field.count_as_storage_parent:
+            for parent_field in field.related_model._meta.fields:
+                if isinstance(parent_field, AutomatedStorageTrackingField):
+                    parent: models.Model = getattr(instance, field.name)
+                    parent.save()
+                    break
