@@ -1,14 +1,8 @@
 from django.db import models
-from django.db.models.signals import post_delete, pre_save
+from django.db.models.signals import (post_delete, pre_save)
 from django.dispatch import receiver
 from databyte.fields import AutomatedStorageTrackingField
-from databyte.utils import (
-    compute_instance_storage,
-    compute_child_storage,
-    compute_external_storage,
-    compute_file_fields_storage,
-    notify_parents_to_recompute
-)
+from databyte.utils import (compute_instance_storage, notify_parents_to_recompute)
 
 
 @receiver(pre_save)
@@ -48,12 +42,7 @@ def update_storage_on_pre_save(sender, instance: models.Model, raw=False, **kwar
     for field in instance._meta.fields:
         if isinstance(field, AutomatedStorageTrackingField):
 
-            instance_storage: int = compute_instance_storage(instance)
-            child_storage: int = compute_child_storage(instance)
-            external_storage: int = compute_external_storage(instance)
-            file_storage: int = compute_file_fields_storage(instance)
-
-            storage_used_value: int = instance_storage + child_storage + external_storage + file_storage
+            storage_used_value: int = compute_instance_storage(instance)
             setattr(instance, field.name, storage_used_value)
 
             if field.include_in_parents_count:

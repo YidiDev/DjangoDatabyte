@@ -3,8 +3,17 @@ from django.db import models
 from databyte.fields import ExternalStorageTrackingField, StorageAwareForeignKey, AutomatedStorageTrackingField
 
 
-# noinspection PyProtectedMember,PyTypeChecker
 def compute_instance_storage(instance: models.Model) -> int:
+    total_storage: int = 0
+    total_storage += compute_instance_fields_storage(instance)
+    total_storage += compute_external_storage(instance)
+    total_storage += compute_child_storage(instance)
+    total_storage += compute_file_fields_storage(instance)
+    return total_storage
+
+
+# noinspection PyProtectedMember,PyTypeChecker
+def compute_instance_fields_storage(instance: models.Model) -> int:
     """
     Compute the storage consumed by the fields of a given instance.
 
