@@ -36,9 +36,7 @@ def compute_instance_fields_storage(instance: models.Model) -> int:
                         models.TextField,
                         models.EmailField,
                         models.URLField,
-                        models.SlugField,
-                        models.FileField,
-                        models.ImageField
+                        models.SlugField
                 )
         ):
             total_storage += len(value.encode('utf-8'))
