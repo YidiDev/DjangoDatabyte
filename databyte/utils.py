@@ -191,5 +191,6 @@ def notify_parents_to_recompute(instance: models.Model) -> None:
             for parent_field in field.related_model._meta.fields:
                 if isinstance(parent_field, AutomatedStorageTrackingField):
                     parent: models.Model = getattr(instance, field.name)
-                    parent.save()
-                    break
+                    if parent:
+                        parent.save()
+                        break
